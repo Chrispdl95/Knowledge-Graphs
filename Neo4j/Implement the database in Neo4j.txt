@@ -1,0 +1,50 @@
+
+
+//Καταρχάς δημιούργησα ένα νέο project στο Local DBMS version 5.3.0
+//Στη συνέχεια πέρασα τα αρχεία δεδομένων μορφης  '.csv' στο φάκελο import του συγκεκριμένου project
+//Μετά με τις παρακάτω εντολές δημιούργησα το γράφο 
+
+//Εισαγωγή των users με χαρακτηριστικά id,name,surname,birthdate
+LOAD CSV WITH HEADERS FROM 'file:///users.csv' AS row
+CREATE (u:User {id: row.id, name: row.Name, surname: row.Surname, birthdate: row.BirthDate})
+
+//Εισαγωγή των editors με χαρακτηριστικά publisher,address 
+LOAD CSV WITH HEADERS FROM 'file:///editors.csv' AS row
+CREATE (e:Editor {publisher: row.publisher, address: row.address})
+
+//Εισαγωγή των genres με χαρακτηριστικο genre
+LOAD CSV WITH HEADERS FROM 'file:///genres.csv' AS row
+MERGE (g:Genre {genre: row.genre})
+
+//Εισαγωγή των books με χαρακτηριστικά title,author,year_written, edition,price 
+LOAD CSV WITH HEADERS FROM 'file:///books.csv' AS row
+MERGE (b:Book {title: row.title, author: row.author, year_written: row.year_written, edition: row.edition, price: row.price})
+
+//Eισαγωγή των borrowed και δημιουργία ακμής μεταξύ kόμβων User και Book.
+LOAD CSV WITH HEADERS FROM 'file:///borrowed.csv' AS row
+MATCH (b:Book {title: row.title})
+MATCH (u:User {id: row.userid})
+CREATE (u)-[:BORROWED {date: toString(row.date)}]->(b)
+
+//Eισαγωγή των rated και δημιουργία ακμής RATED  μεταξύ kόμβων User και Book.
+LOAD CSV WITH HEADERS FROM 'file:///rated.csv' AS row
+MATCH (b:Book {title: row.title})
+MATCH (u:User {id: row.userid})
+CREATE (u)-[:RATED {rank: toInteger(row.rank)}]->(b)
+
+//Δημιουργία ακμής GENRE_OF μεταξύ kόμβων Genre και Book.
+LOAD CSV WITH HEADERS FROM 'file:///genres.csv' AS row
+MATCH (b:Book {title: row.title})
+MATCH (g:Genre {genre: row.genre})
+CREATE (b)-[:GENRE_OF]->(g)
+
+//Δημιουργία ακμής PUBLISHED μεταξύ kόμβων Editor και Book.
+LOAD CSV WITH HEADERS FROM 'file:///books.csv' AS row
+MATCH (b:Book {edition: row.edition})
+MATCH (e:Editor {publisher: row.edition})
+MERGE  (e)-[:PUBLISHED]->(b)
+
+
+
+
+

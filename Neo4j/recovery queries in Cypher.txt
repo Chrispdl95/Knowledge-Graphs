@@ -1,0 +1,91 @@
+//ερώτημα 1 Οι χρήστες που έχουν βαθμολογήσει κάποιο βιβλίο με είδος classic ή fantasy με βαθμό
+τουλάχιστον 4. (όνομα χρήστη, επώνυμο χρήστη, τίτλος βιβλίου, βαθμολογία)
+
+MATCH (u:User)-[r:RATED]->(b:Book)-[:GENRE_OF]->(g:Genre)
+WHERE g.genre IN ['classic', 'fantasy'] AND r.rank >= 4
+RETURN u.name AS user_name, u.surname AS user_surname, b.title AS book_title, r.rank AS rating
+
+
+//ερώτημα 2 Οι χρήστες που έχουν δανειστεί τουλάχιστον τρία διαφορετικά βιβλία ταξινομημένοι σε
+φθίνουσα διάταξη βάσει των βιβλίων που δανείστηκαν (ονοματεπώνυμο χρήστη, αριθμός
+βιβλίων) 
+
+MATCH (u:User)-[:BORROWED]->(b:Book)
+WITH u, COUNT(DISTINCT b) AS NumOfBorrowedBooks
+WHERE NumOfBorrowedBooks>=3
+RETURN u.name AS user_name ,u.surname AS user_surname ,NumOfBorrowedBooks 
+ORDER BY NumOfBorrowedBooks DESC
+
+//ερώτημα 3 Τα βιβλία που δεν έχει δανειστεί και δεν έχει βαθμολογήσει κανείς. (τίτλοι και είδη των
+βιβλίων)
+
+MATCH(b:Book)-[:GENRE_OF]->(g:Genre)
+WHERE NOT EXISTS((b)<-[:BORROWED]-())
+ AND NOT EXISTS((b)<-[:RATED]-())
+RETURN b.title AS BookTitle , g.genre AS Genre
+
+//ερώτημα 4 Συστήστε στον Gary Oldman βιβλία που βαθμολόγησαν με βαθμό >3, χρήστες που
+δανείστηκαν τα ίδια βιβλία με αυτόν, και τα οποία δεν έχει διαβάσει (δανειστεί η βαθμολογήσει
+ο ίδιος). (όλα τα σχετικά στοιχεία)
+
+MATCH (G_O:User {name: "Gary", surname: "Oldman"})-[:BORROWED]->(b:Book)<-[:BORROWED]-(u:User)-[r:RATED]->(books)
+WHERE r.rank > 3 AND NOT EXISTS((G_O)-[:BORROWED]->(books))
+ AND NOT EXISTS((G_O)-[:RATED]->(books))
+RETURN  books.title AS BookTitle , books.year_written As Year_Written , books.author As Author, books.price As Price
+
+//ερώτημα 5  Για κάθε εκδοτικό οίκο, το πλήθος των βιβλίων που έχει εκδώσει ανά είδος κατά αλφαβητική
+σειρά οίκου και είδους (εκδότης, είδος, πλήθος βιβλίων).
+
+MATCH (e:Editor)-[:PUBLISHED]->(b:Book)-[:GENRE_OF]->(g:Genre)
+WITH e.publisher AS Publisher, g.genre AS Genre, COUNT(b) AS TotalBooks
+ORDER BY Publisher, Genre
+RETURN Publisher, Genre, TotalBooks
+
+
+//ερώτημα 6  Οι συγγραφείς και εκδότες που απέχουν απόσταση 4 από τον Gabriel Byrne. (συγγραφείς και
+εκδότες)
+
+MATCH path = (gb:User {name: 'Gabriel',surname:'Byrne'})-[*1..4]-(node)
+WHERE (node:Book OR node:Editor)
+WITH DISTINCT node.author AS Author, node.publisher AS Publisher
+RETURN coalesce(Author, '') + '' + coalesce(Publisher, '') + '' AS author_publisher
+
+//ερώτημα 7 Δώστε το συντομότερο μονοπάτι μεταξύ όλων των ζευγών χρηστών, για τους χρήστες με μικρό
+όνομα που αρχίζει από ‘Β’. Εμφανίστε τα ζεύγη ξεκινώντας από αυτό με το συντομότερο
+μονοπάτι προς αυτό με το μεγαλύτερο. (ονοματεπώνυμο χρήστη1, ονοματεπώνυμο χρήστη 2,
+μήκος μονοπατιού).
+
+MATCH p=shortestPath((user1:User)-[*1..100]-(user2:User))
+WHERE user1.name STARTS WITH 'B' AND user2.name STARTS WITH 'B' AND user1 <> user2 
+WITH DISTINCT user1.name AS Name1,user1.surname AS Sur1, user2.name AS Name2,user2.surname AS Sur2, length(p) AS LengthOfPath
+RETURN  coalesce(Name1, '') + ' ' + coalesce(Sur1, '') + '' AS full_name1 ,coalesce(Name2, '') + ' ' + coalesce(Sur2, '') + '' AS full_name2, LengthOfPath
+Order by LengthOfPath
+
+
+//ερώτημα 8 Βρείτε το ζεύγος χρηστών που έχουν δανειστεί τα περισσότερα κοινά βιβλία (ονοματεπώνυμο
+χρήστη1, ονοματεπώνυμο χρήστη2, πλήθος βιβλίων).
+
+MATCH (user1:User)-[:BORROWED]->(books:Book)<-[:BORROWED]-(user2:User)
+WITH user1.name AS Name1, user1.surname as Sur1, user2.name as Name2 , user2.surname as Sur2 , COUNT(DISTINCT books) AS Books
+WHERE Name1 <> Name2 and Sur1 <> Sur2
+RETURN coalesce(Name1, '') + ' ' + coalesce(Sur1, '') + '' AS full_name1 ,coalesce(Name2, '') + ' ' + coalesce(Sur2, '') + '' AS full_name2, Books
+Order by Books desc
+limit 1
+
+
+//ερώτημα 9 Για τα βιβλία που έχουν πάνω από 3 είδη, το πλήθος των χρηστών που τα έχουν δανειστεί.
+(τίτλος, πλήθος χρηστών) 
+
+(Σχόλιο: Επειδή δεν υπάρχει κάποιο βιβλίο που να ανήκει σε πάνω από 3 είδη //άλλαξα τη τιμή σε 2) 
+MATCH (user:User)-[:BORROWED]->(book:Book)-[:GENRE_OF]->(genre:Genre)
+WITH book, COUNT(distinct genre) AS NumberOfGenres, count(DISTINCT user) as NumOfUsers
+WHERE NumberOfGenres > 2
+RETURN book.title AS TitleofBook , NumOfUsers
+
+//ερώτημα 10  Οι χρήστες που έχουν δανειστεί κάποιο βιβλίο που έχει διαβάσει ο Al Pacino, αλλά δεν έχει
+βαθμολογήσει ούτε ο Bill Murray ούτε ο Brad Pitt. (χρήστες, βιβλία)
+
+MATCH (user1:User)-[:BORROWED]->(book:Book)<-[:BORROWED]-(user2:User {name: "Al", surname: "Pacino"})
+WHERE NOT (user1 {name: "Bill", surname: "Murray"})-[:RATED]->(book)
+  AND NOT (user1 {name: "Brad", surname: "Pitt"})-[:RATED]->(book)
+RETURN coalesce(user1.name, '') + ' ' + coalesce(user1.surname, '') + '' AS user , book.title AS BookTitle 
